@@ -4,7 +4,8 @@
 
 本模型是分析阶段的领域类模型，不直接等同于数据库表结构。模型重点表达业务实体、规则和一致性边界。
 
-StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)
+StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)。全部实验一图型也已合并到
+[lab1-all-models.mdj](diagrams/lab1-all-models.mdj)。
 
 ## 2. 核心实体
 

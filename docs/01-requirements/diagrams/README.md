@@ -2,8 +2,15 @@
 
 本目录保存实验一的可编辑 StarUML 原生工程文件。使用 StarUML 打开 `.mdj` 文件即可查看和修改模型。
 
+推荐直接打开 [lab1-all-models.mdj](lab1-all-models.mdj)。该工程在同一个 Model Explorer 中包含全部 9 张图：
+
+- 5 张模块用例图
+- 3 张关键活动图
+- 1 张领域类图
+
 | 文件 | 图类型 | 检查结果 |
 | --- | --- | --- |
+| `lab1-all-models.mdj` | 综合工程 | 9 张图合并在一个项目中 |
 | `account-use-cases.mdj` | 用例图 | 2 个角色、4 个用例、5 条关系、12 个视图 |
 | `trip-use-cases.mdj` | 用例图 | 1 个角色、3 个用例、4 条关系、9 个视图 |
 | `points-use-cases.mdj` | 用例图 | 2 个角色、3 个用例、3 条关系、9 个视图 |
