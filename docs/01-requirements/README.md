@@ -20,7 +20,8 @@
 - [领域模型](domain-model.md)
 - [非功能需求](non-functional-requirements.md)
 - [迭代规划](iteration-plan.md)
-- [PlantUML 图源](diagrams/)
+- [全部 StarUML 模型（单一工程）](diagrams/lab1-all-models.mdj)
+- [StarUML 图文件说明](diagrams/README.md)
 
 ## 3. 项目概述
 

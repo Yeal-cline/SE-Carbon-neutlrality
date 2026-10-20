@@ -37,6 +37,8 @@ MVP 中商户不拥有独立登录端，商户相关操作暂由运营管理员�
 
 按截图要求，不把所有用例放在一张图中。每个模块使用独立 StarUML 用例图：
 
+全部图和模型也可从单一工程 [lab1-all-models.mdj](diagrams/lab1-all-models.mdj) 打开。
+
 | 模块 | 用例 | 图文件 |
 | --- | --- | --- |
 | 账户与权限 | UC-01、UC-02、UC-03、UC-16 | [account-use-cases.mdj](diagrams/account-use-cases.mdj) |
