@@ -62,10 +62,19 @@ StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)。全部实
 - `role: UserRole`
 - `status: UserStatus`
 
+### Merchant
+
+- `merchantId: String`
+- `name: String`
+- `status: MerchantStatus`
+
 ### TripRecord
 
 - `tripId: String`
 - `userId: String`
+- `clientTripId: String`
+- `origin: String`
+- `destination: String`
 - `mode: TravelMode`
 - `distanceKm: Decimal`
 - `startTime: DateTime`
@@ -75,6 +84,10 @@ StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)。全部实
 - `reductionKg: Decimal`
 - `awardedPoints: Integer`
 - `ruleVersion: String`
+- `baselineFactorKgPerKm: Decimal`
+- `modeFactorKgPerKm: Decimal`
+- `pointsPerKg: Decimal`
+- `calculatedAt: DateTime`
 - `status: TripStatus`
 
 ### CarbonRule
@@ -88,6 +101,9 @@ StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)。全部实
 - `effectiveTo: DateTime`
 - `version: String`
 - `status: RuleStatus`
+- `createdBy: String`
+- `createdAt: DateTime`
+- `changeReason: String`
 
 ### PointAccount
 
@@ -123,10 +139,14 @@ StarUML 工程文件：[domain-model.mdj](diagrams/domain-model.mdj)。全部实
 - `userId: String`
 - `productId: String`
 - `quantity: Integer`
+- `pointsPriceSnapshot: Integer`
 - `pointsCost: Integer`
 - `status: OrderStatus`
 - `requestId: String`
 - `createdAt: DateTime`
+- `processedBy: String?`
+- `processedAt: DateTime?`
+- `processReason: String?`
 
 ## 4. 实体关系
 
@@ -155,11 +175,12 @@ reductionKg = max(0, baselineEmissionKg - actualEmissionKg)
 awardedPoints = floor(reductionKg × pointsPerKg)
 ```
 
-积分系数和排放因子必须来自已经生效、且与行程时间匹配的 `CarbonRule`。计算完成后将结果和规则版本写入 `TripRecord`。
+积分系数和排放因子必须来自按行程结束时间匹配（左闭右开区间）的 `CarbonRule`。计算完成后将结果和规则版本写入 `TripRecord`。
 
 ### 5.2 积分发放不变量
 
-- 一个 `tripId` 最多对应一笔成功发放流水。
+- `userId + clientTripId` 唯一；同键同输入重放，不同输入拒绝。一个 `tripId` 最多一笔发放流水。
+- 零积分成功保存行程，不生成零金额流水。
 - `PointAccount.balance` 不得小于 0。
 - `PointLedger` 只追加，不更新历史记录。
 - 流水中的 `balanceAfter` 必须等于该用户此前流水累计后的余额。
@@ -168,13 +189,13 @@ awardedPoints = floor(reductionKg × pointsPerKg)
 
 - `Product.stock` 不得小于 0。
 - 余额不足或库存不足时，不产生订单。
-- 同一 `requestId` 只能产生一个订单。
+- `userId + requestId` 唯一，同键同商品同数量重放原订单，不同输入拒绝。
 - 订单、积分扣减流水和库存更新必须属于同一事务边界。
 
 ### 5.4 规则版本不变量
 
 - 同一出行方式、同一时间段只能有一条生效规则。
-- 修改规则时创建新版本，不覆盖历史版本。
+- 创建新版本，不覆盖历史因子；原子结束旧区间并开启新区间，禁止追溯生效。
 - 历史行程不因新规则生效而重新计算。
 - 规则变更必须记录操作人、变更时间和变更原因。
 
@@ -184,9 +205,7 @@ awardedPoints = floor(reductionKg × pointsPerKg)
 
 | 状态 | 含义 | 允许的下一状态 |
 | --- | --- | --- |
-| `VALIDATED` | 行程校验通过，等待核算 | `POINTED`、`FAILED` |
-| `POINTED` | 减排已核算且积分已发放 | 无，异常通过冲正流水处理 |
-| `FAILED` | 校验或核算失败 | 无 |
+| `POINTED` | 核算完成，非零积分已发放，零积分无需流水 | 无 |
 
 ### 6.2 RedemptionOrder
 
@@ -194,19 +213,25 @@ awardedPoints = floor(reductionKg × pointsPerKg)
 | --- | --- | --- |
 | `CREATED` | 已扣积分与库存，等待履约 | `FULFILLED`、`CANCELLED` |
 | `FULFILLED` | 已完成履约 | 无 |
-| `CANCELLED` | 已取消，可能生成积分冲正 | 无 |
+| `CANCELLED` | 已全额返还积分、恢复库存并追加唯一冲正流水 | 无 |
 
-## 7. 领域事件
+## 7. 清算、审计与事件边界
 
-为满足实验指导书建议的事件驱动设计，MVP 使用进程内领域事件表达业务事实，不强制引入消息队列：
+积分清算指入账、扣减、取消冲正及账目核对，不代表真实资金结算。流水类型为TRIP_GRANT、REDEMPTION_DEBIT、REDEMPTION_REVERSAL，与业务编号构成唯一键。返还使用原订单pointsCost，不按商品现价重算。精度、时间、状态与对账规则统一见 [业务规则](business-rules.md)。
 
-| 事件 | 产生时机 | 后续处理 |
+规则、库存与订单审计包含操作人、时间、前后值和原因，与业务修改原子保存。审计是支撑值对象，实验二再确定存储方式，不为每种审计独立增加领域实体。
+
+同步进程内领域事件参加调用方同一本地事务；以下写入均尚未提交，任一步失败向上传播并整体回滚：
+
+| 事件 | 事务内发生时机 | 同步处理 |
 | --- | --- | --- |
-| `TripReported` | 行程保存成功 | 触发碳核算 |
-| `EmissionCalculated` | 减排量计算完成 | 请求发放积分 |
-| `PointsGranted` | 积分流水和余额更新成功 | 更新行程状态 |
-| `RedemptionRequested` | 用户提交兑换 | 校验余额与库存 |
-| `PointsDeducted` | 积分扣减成功 | 创建订单 |
-| `RedemptionOrderCreated` | 订单创建成功 | 等待履约或取消 |
+| TripReported | 行程输入通过校验与幂等检查 | 核算并保存因子快照 |
+| EmissionCalculated | 计算完成 | 非零积分写唯一流水并加余额 |
+| PointsGranted | 流水和余额更新完成 | 行程标记POINTED；零积分直接完成，无发分事件 |
+| RedemptionRequested | 兑换幂等检查通过 | 校验并更新余额、库存、流水和订单 |
+| RedemptionOrderCreated | 兑换写入全部成功 | 提交后返回成功 |
+| RedemptionCancelled | 取消、积分库存返还和冲正写入完成 | 保存审计，提交后返回结果 |
 
-如果后续需要异步消息，应增加事务性发件箱或可靠事件表，避免数据库提交成功但消息发送失败。
+禁止提交后再异步触发核心发分，或吞掉异常继续提交。RabbitMQ、Outbox和分布式补偿不属于MVP；若引入外部异步通知，须另做可靠投递设计。
+
+失败上报仅返回错误与日志，不保存失败行程，因此VALIDATED和FAILED不作为当前可查询行程状态。对账只读，不修改历史流水。

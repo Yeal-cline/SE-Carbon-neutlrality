@@ -1,33 +1,21 @@
-# StarUML 图文件
+# StarUML图文件
 
-本目录保存实验一的可编辑 StarUML 原生工程文件。使用 StarUML 打开 `.mdj` 文件即可查看和修改模型。
+v0.2，2026-10-27。推荐打开 [综合工程](lab1-all-models.mdj)，含5张模块用例图、3张关键活动图、1张领域类图；独立工程与综合工程保持模型一致。
 
-推荐直接打开 [lab1-all-models.mdj](lab1-all-models.mdj)。该工程在同一个 Model Explorer 中包含全部 9 张图：
-
-- 5 张模块用例图
-- 3 张关键活动图
-- 1 张领域类图
-
-| 文件 | 图类型 | 检查结果 |
+| 文件 | 类型 | 模型清单 |
 | --- | --- | --- |
-| `lab1-all-models.mdj` | 综合工程 | 9 张图合并在一个项目中 |
-| `account-use-cases.mdj` | 用例图 | 2 个角色、4 个用例、5 条关系、12 个视图 |
-| `trip-use-cases.mdj` | 用例图 | 1 个角色、3 个用例、4 条关系、9 个视图 |
-| `points-use-cases.mdj` | 用例图 | 2 个角色、3 个用例、3 条关系、9 个视图 |
-| `mall-use-cases.mdj` | 用例图 | 3 个角色、5 个用例、8 条关系、17 个视图 |
-| `operations-use-cases.mdj` | 用例图 | 1 个角色、2 个用例、2 条关系、6 个视图 |
-| `trip-point-issuance-activity.mdj` | 活动图 | 17 个节点、34 个视图 |
-| `redemption-activity.mdj` | 活动图 | 14 个节点、31 个视图 |
-| `rule-change-activity.mdj` | 活动图 | 10 个节点、20 个视图 |
-| `domain-model.mdj` | 类图 | 8 个类、55 个属性、1 个操作、9 条关系 |
+| `account-use-cases.mdj` | 用例图 | 2个参与者、4个用例、5条关系 |
+| `domain-model.mdj` | 领域类图 | 8个类、71个属性、9条关系 |
+| `mall-use-cases.mdj` | 用例图 | 3个参与者、5个用例、8条关系 |
+| `operations-use-cases.mdj` | 用例图 | 1个参与者、2个用例、2条关系 |
+| `points-use-cases.mdj` | 用例图 | 2个参与者、3个用例、3条关系 |
+| `redemption-activity.mdj` | 活动图 | 9个动作、18条控制流 |
+| `rule-change-activity.mdj` | 活动图 | 8个动作、13条控制流 |
+| `trip-point-issuance-activity.mdj` | 活动图 | 11个动作、22条控制流 |
+| `trip-use-cases.mdj` | 用例图 | 1个参与者、3个用例、4条关系 |
 
-## 导出建议
+运营图包含UC-15统计和UC-17对账；UC-16启停用户只归账户模块。商城保留“商户（管理员代办）”表达业务利益相关者，MVP无商户登录接口。完整角色边界见业务规则BR-08。
 
-1. 使用 StarUML 打开对应 `.mdj` 文件。
-2. 检查自动布局后的连线、标签和系统边界是否可见。
-3. 通过 `File → Export As → PNG` 导出报告图片，建议宽度不低于 1600 像素。
-4. 导出后将图片放入实验报告的模型章节，并保留 `.mdj` 作为可编辑源文件。
+领域模型按domain-model.md的属性重新生成；新增客户端幂等键、起终点、规则因子快照及订单成本和处理信息。活动图按结束时间规则、幂等重放、零积分和本地事务回滚更新。动作中的业务写入在同一本地事务内，任意异常（含提交失败）回滚，权限失败立即拒绝；图中通用错误处理的详细判定见business-rules.md。
 
-## 生成说明
-
-图文件由 MIT 许可的 `staruml-mcp-server` 生成，并使用其结构检查器验证。生成结果包含真实的 StarUML 模型元素、视图和引用，不是静态截图。
+沿用MIT许可的staruml-mcp-server生成器；综合工程由独立工程合并，不手工维护第二套语义。结构检查包括唯一ID、引用、父子关系、独立与综合一致性以及文档字段对应。结构检查不等于StarUML实际渲染验证；交付报告前仍需打开工程检查连线、标签和边界，再导出PNG。不得把文档中的预期测试场景写成已通过测试。
