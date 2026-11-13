@@ -117,7 +117,11 @@ export async function request<T, B = unknown>(options: RequestOptions<B>): Promi
   // 后端约定 code === 0 成功；不是 0 就当业务失败抛出
   if (!payload || payload.code !== 0) {
     const msg = payload?.message || '服务返回异常'
-    if (payload?.code === 401) clearToken()
+    // 有的后端把"登录过期"放在业务码里（HTTP 仍是 200），两种都要清登录态并跳登录
+    if (payload?.code === 401) {
+      clearToken()
+      window.dispatchEvent(new CustomEvent('app:unauthorized'))
+    }
     throw new ApiError(msg, payload?.code ?? -1, res.status)
   }
   return payload.data

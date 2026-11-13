@@ -71,6 +71,14 @@ function openCancel(o: Order) {
   cancelOpen.value = true
 }
 
+/** 从详情抽屉里点取消：先收起抽屉，再开确认弹窗，避免两层遮罩叠在一起 */
+function cancelFromDrawer() {
+  if (!current.value) return
+  const target = current.value
+  drawerOpen.value = false
+  openCancel(target)
+}
+
 async function submitCancel() {
   if (!cancelTarget.value || cancelling.value) return
   if (!reason.value.trim()) {
@@ -82,6 +90,7 @@ async function submitCancel() {
   try {
     const updated = await cancelOrder(cancelTarget.value.orderId, reason.value.trim())
     cancelOpen.value = false
+    if (current.value?.orderId === updated.orderId) current.value = updated
     toast(`已取消，返还 ${updated.totalPoints} 积分`)
     await load()
   } catch (e) {
@@ -203,6 +212,11 @@ onMounted(async () => {
         <p class="hint" style="margin-top: 16px">
           取消订单会按原额返还积分、按原数量返还库存，均以服务端结果为准。
         </p>
+      </template>
+      <template #footer>
+        <AppButton variant="secondary" @click="drawerOpen = false">关闭</AppButton>
+        <!-- 只有待发放的订单能取消：已发放的要走售后，已取消的不能重复取消 -->
+        <AppButton v-if="current?.status === 'CREATED'" variant="danger" @click="cancelFromDrawer">取消订单</AppButton>
       </template>
     </AppDrawer>
 
