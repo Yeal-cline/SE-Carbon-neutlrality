@@ -7,10 +7,9 @@ dist-app/
 .electron-cache/
 .app-profile/
 .shot-profile/
-.probe-profile/
-.probe2-profile/
-.probe3-profile/
+.probe*-profile/
 *.log
+screen.png
 
 # 截图产物（要展示的图放 docs/）
 shot-*.png
