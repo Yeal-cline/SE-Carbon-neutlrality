@@ -109,3 +109,39 @@ src/
 - `npm run build:single` 通过：`dist-app/index.html` 290KB（gzip 98KB）。
 - 自动化冒烟：普通用户 7 个页面 + 管理员 6 个页面逐页打开，**0 条运行时报错**；
   普通用户访问 `/admin/*` 正确落到 403 页。
+
+## 九、自动化回归（e2e.mjs，答辩前跑一遍）
+
+`e2e.mjs` 把"人工点一遍"的演示链路做成了断言脚本，共 25 条检查：
+
+```
+登录 → 上报行程 → 核算详情 → 积分入账 → 商城兑换 → 订单取消 → 退出登录 → 重新登录 → 越权 403 → 登录过期
+```
+
+跑法（Windows，两个窗口）：
+
+```bat
+:: 1. 打包单文件
+npm run build:single
+
+:: 2. 起一个无头 Chrome（也可以用 dev server 的地址，把 file:// 换掉即可）
+start "" chrome --headless=new --remote-debugging-port=9232 ^
+  --user-data-dir=.probe-profile ^
+  "file:///%CD:\=/%/dist-app/index.html"
+
+:: 3. 执行断言，全部通过退出码为 0，否则为 1（可接 CI）
+node e2e.mjs 9232
+```
+
+它会输出每一行的 ✓/✗ 和实测值，例如：
+
+```
+  ✓ 提交后跳到行程详情  → #/app/trips/T202611130021
+  ✓ 取消后积分原额返还  → 兑换前 849 → 取消后 849
+  ✓ 登录过期跳登录并带 redirect  → #/login?redirect=/app/orders
+
+结果：25/25 通过
+```
+
+这条脚本真的抓到过 bug：`tripId` 曾经错误地用了前端的 `clientTripId`，导致提交后详情页 404——
+**能跑一遍的断言，比"我记得点过"可靠得多**，答辩前一天跑一次就够了。

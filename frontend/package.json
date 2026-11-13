@@ -12,6 +12,7 @@
     "build:single": "vite build --mode single",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
+    "e2e": "node e2e.mjs",
     "app": "npm run build:single && electron .",
     "app:only": "electron ."
   },

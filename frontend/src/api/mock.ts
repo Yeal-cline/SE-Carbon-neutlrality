@@ -44,6 +44,8 @@ function calcReduction(distanceKm: number, mode: TripMode): number {
 let trips: TripDetail[] = []
 let flows: PointsFlow[] = []
 let orders: Order[] = []
+/** 幂等表：clientTripId → tripId。真后端是一张 unique 索引的表，这里用 Map 模拟 */
+const tripIdByClientId = new Map<string, string>()
 
 function seed(): void {
   const plan: Array<[TripMode, number, number, string, string, number]> = [
@@ -367,8 +369,12 @@ export async function mockRequest<T>(req: MockRequestInit): Promise<T> {
       startPlace: string
       endPlace: string
     }
-    const exists = trips.find((t) => t.tripId === body.clientTripId)
-    if (exists) return ok(exists) as unknown as T // 幂等：重复提交返回同一结果
+    // 幂等：同一个 clientTripId 重复提交，返回第一次落库的那条，不重复加分
+    const dupTripId = tripIdByClientId.get(body.clientTripId)
+    if (dupTripId) {
+      const dup = trips.find((t) => t.tripId === dupTripId)
+      if (dup) return ok(dup) as unknown as T
+    }
 
     const distanceKm = Number(body.distanceKm)
     if (!(distanceKm > 0) || distanceKm > 200) {
@@ -380,8 +386,18 @@ export async function mockRequest<T>(req: MockRequestInit): Promise<T> {
 
     const reductionKg = calcReduction(distanceKm, body.mode)
     const awardedPoints = Math.max(0, Math.floor(reductionKg * POINTS_RATIO))
+    // 业务主键由**服务端**生成，和前端传的 clientTripId 是两回事：
+    // clientTripId 只用于幂等去重，绝不能当成 tripId 用（否则详情页拿它去查会 404）
+    const d = new Date()
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+    let seq = trips.length + 1
+    let tripId = `T${stamp}${String(seq).padStart(4, '0')}`
+    while (trips.some((t) => t.tripId === tripId)) {
+      seq += 1
+      tripId = `T${stamp}${String(seq).padStart(4, '0')}`
+    }
     const trip: TripDetail = {
-      tripId: body.clientTripId,
+      tripId,
       mode: body.mode,
       distanceKm,
       reductionKg,
@@ -399,6 +415,7 @@ export async function mockRequest<T>(req: MockRequestInit): Promise<T> {
       ruleVersion: 'R-2026-11',
     }
     trips = [trip, ...trips]
+    tripIdByClientId.set(body.clientTripId, tripId)
     state.account.balance += awardedPoints
     state.account.totalEarned += awardedPoints
     state.account.tripCount += 1
